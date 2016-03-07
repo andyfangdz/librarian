@@ -14,3 +14,4 @@ class SidomoDriver(object):
         self.container.__enter__()
         for line in self.container.run('/bin/sh -c "%s"' % script):
             print line
+        self.container.__exit__()
