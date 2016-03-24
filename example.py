@@ -3,57 +3,67 @@ import os
 import tempfile
 import filecmp
 import pyprind
+import sys
+import shutil
+from templates import templates
 
-EXAMPLE_PYTHON = """\
-#!/bin/bash
-set -e
+EXAMPLE_DATA_RANGE = range(1, 3) * 5
+CLEANUP = True
+sample_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sample_data/good')
 
-CODE_DIR=/var/code
-INPUT_DIR=/var/input
-OUTPUT_DIR=/var/output
-python ${CODE_DIR}/Main.py ${INPUT_DIR}/%d.in ${OUTPUT_DIR}/output.log 1>${OUTPUT_DIR}/stdout.log 2>${OUTPUT_DIR}/stderr.log
-"""
+def copytree(src, dst, symlinks=False, ignore=None):
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            shutil.copytree(s, d, symlinks, ignore)
+        else:
+            shutil.copy2(s, d)
 
-EXAMPLE_JAVAC = """\
-#!/bin/bash
-set -e
+def should_compile(lang_conf):
+    return "compile" in lang_conf and lang_conf["compile"]
 
-CODE_DIR=/var/code
-INPUT_DIR=/var/input
-OUTPUT_DIR=/var/output
-javac ${CODE_DIR}/Main.java -d ${OUTPUT_DIR} -cp ${CODE_DIR}
-"""
-
-EXAMPLE_JAVA = """\
-#!/bin/bash
-set -e
-
-CODE_DIR=/var/code
-INPUT_DIR=/var/input
-OUTPUT_DIR=/var/output
-java -cp ${CODE_DIR} Main
-"""
-
-
-
-EXAMPLE_DATA_RANGE = range(1, 3)
-
-JAVA_IMAGE = 'vixns/java8'
-CPP_IMAGE = 'gcc'
-PYTHON_IMAGE = 'python:alpine'
 
 if __name__ == "__main__":
-    sample_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sample_data/good')
-    bar = pyprind.ProgBar(len(EXAMPLE_DATA_RANGE))
+    JUDGE_LANG = sys.argv[1]
     code_path = os.path.join(sample_dir, 'code')
-    tmp_path = tempfile.mkdtemp()
     input_path = os.path.join(sample_dir, 'input')
-    sandbox(JAVA_IMAGE, code_path, None, tmp_path, EXAMPLE_JAVAC)
+    temp_code_path = tempfile.mkdtemp()
+    temp_input_path = tempfile.mkdtemp()
+    compile_output = tempfile.mkdtemp()
+
+    copytree(input_path, temp_input_path)
+    copytree(code_path, temp_code_path)
+    
+    lang_conf = templates[JUDGE_LANG]
+    
+    if should_compile(lang_conf):
+        sandbox(lang_conf["image"], temp_code_path, None, compile_output, lang_conf["compile"].render())
+        if os.path.exists(os.path.join(compile_output, 'compile_failure')):
+            print "Compile Failed. Error message:"
+            with open(os.path.join(compile_output, 'stderr.log'), 'r') as stderr:
+                print stderr.read()
+            if CLEANUP:
+                shutil.rmtree(compile_output)
+                shutil.rmtree(temp_code_path)
+                shutil.rmtree(temp_input_path)
+            exit(-1)
+
+    results = []
+    bar = pyprind.ProgBar(len(EXAMPLE_DATA_RANGE))
     for i in EXAMPLE_DATA_RANGE:
         output_tmp = tempfile.mkdtemp()
-        sandbox(JAVA_IMAGE, tmp_path, input_path, output_tmp, EXAMPLE_JAVA)
+        sandbox(lang_conf["image"], temp_code_path, temp_input_path, output_tmp, lang_conf["run"].render(data_id=i))
         # sandbox('frolvlad/alpine-oraclejdk8:cleaned',
         bar.update()
-        # print filecmp.cmp(os.path.join(sample_dir, 'output/%d.out' % i),
-                          # os.path.join(temp_dir, 'output.log'))
-    print "Temp folder: %s" % temp_dir
+        results.append(filecmp.cmp(os.path.join(sample_dir, 'output/%d.out' % i),
+                                   os.path.join(output_tmp, 'output.log')))
+        if CLEANUP:
+            shutil.rmtree(output_tmp)
+
+    if CLEANUP:
+        shutil.rmtree(compile_output)
+        shutil.rmtree(temp_code_path)
+        shutil.rmtree(temp_input_path)
+    print "Temp folder: %s" % output_tmp
+    print results

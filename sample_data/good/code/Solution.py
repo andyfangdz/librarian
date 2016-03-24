@@ -1,3 +1,3 @@
 class Solution:
-    def run(self, string):
-        return string.replace('\n', '')
+    def aplusb(self, a, b):
+        return a + b

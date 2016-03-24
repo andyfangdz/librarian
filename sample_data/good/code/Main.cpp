@@ -1,8 +1,24 @@
-int main() {
+#include <iostream>
+#include <string>
+#include <fstream>
+#include "Solution.cpp"
+
+using namespace std;
+
+int main(int argc, char *argv[]) {
+	ifstream in(argv[1])
+	ofstream out(argv[2]);
+
     string data;
-    std::getline(std::cin, data);
-    vector<int> params = Utility::parseIntVector(data);
+
+    std::getline(in, data);
+    int a = stoi(data);
+
+    std::getline(in, data);
+    int b = stoi(data);
+
     Solution solution;
-    std::cout <<  solution.aplusb(params[0], params[1]) << std::endl;
+    out <<  solution.aplusb(a, b) << std::endl;
+    out.close();
     return 0;
 }
