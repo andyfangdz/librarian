@@ -6,6 +6,7 @@ import pyprind
 import sys
 import shutil
 from templates import templates
+import difflib
 
 EXAMPLE_DATA_RANGE = range(1, 3) * 5
 CLEANUP = True
@@ -55,11 +56,24 @@ if __name__ == "__main__":
         output_tmp = tempfile.mkdtemp()
         sandbox(lang_conf["image"], temp_code_path, temp_input_path, output_tmp, lang_conf["run"].render(data_id=i))
         # sandbox('frolvlad/alpine-oraclejdk8:cleaned',
+        
+        original_output = os.path.join(sample_dir, 'output/%d.out' % i)
+        user_output = os.path.join(output_tmp, 'output.log')
+
+        results.append(filecmp.cmp(original_output, user_output))
         bar.update()
-        results.append(filecmp.cmp(os.path.join(sample_dir, 'output/%d.out' % i),
-                                   os.path.join(output_tmp, 'output.log')))
+        if not results[-1]:
+            original_lines = list(open(original_output, 'r'))
+            user_lines = list(open(user_output, 'r'))
+            differ = difflib.Differ()
+            print '\n'.join(differ.compare(original_lines, user_lines))
+            if CLEANUP:
+                shutil.rmtree(output_tmp)
+                
+            break
         if CLEANUP:
             shutil.rmtree(output_tmp)
+        
 
     if CLEANUP:
         shutil.rmtree(compile_output)
