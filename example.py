@@ -35,9 +35,9 @@ if __name__ == "__main__":
 
     copytree(input_path, temp_input_path)
     copytree(code_path, temp_code_path)
-    
+
     lang_conf = templates[JUDGE_LANG]
-    
+
     if should_compile(lang_conf):
         sandbox(lang_conf["image"], temp_code_path, None, compile_output, lang_conf["compile"].render())
         if os.path.exists(os.path.join(compile_output, 'compile_failure')):
@@ -54,9 +54,10 @@ if __name__ == "__main__":
     bar = pyprind.ProgBar(len(EXAMPLE_DATA_RANGE))
     for i in EXAMPLE_DATA_RANGE:
         output_tmp = tempfile.mkdtemp()
+        print(output_tmp)
         sandbox(lang_conf["image"], temp_code_path, temp_input_path, output_tmp, lang_conf["run"].render(data_id=i))
         # sandbox('frolvlad/alpine-oraclejdk8:cleaned',
-        
+
         original_output = os.path.join(sample_dir, 'output/%d.out' % i)
         user_output = os.path.join(output_tmp, 'output.log')
 
@@ -69,11 +70,11 @@ if __name__ == "__main__":
             print '\n'.join(differ.compare(original_lines, user_lines))
             if CLEANUP:
                 shutil.rmtree(output_tmp)
-                
+
             break
         if CLEANUP:
             shutil.rmtree(output_tmp)
-        
+
 
     if CLEANUP:
         shutil.rmtree(compile_output)

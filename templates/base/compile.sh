@@ -1,5 +1,6 @@
-#!/bin/bash
+{% extends 'base/base.sh' %}
 
+{% block content %}
 CODE_DIR=/var/code
 INPUT_DIR=/var/input
 OUTPUT_DIR=/var/output
@@ -9,8 +10,10 @@ OUTPUT_DIR=/var/output
 
 RETURN=$?
 
-if [ $RETURN -ne 0 ]
+if [ ${RETURN} -ne 0 ]
 then
-    echo $RETURN > ${OUTPUT_DIR}/compile_failure
+    echo ${RETURN} > ${OUTPUT_DIR}/compile_failure
     exit 1
 fi
+
+{% endblock %}
